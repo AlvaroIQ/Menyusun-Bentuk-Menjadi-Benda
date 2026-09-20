@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Menyusun Bentuk: Shape Builder TK</title>
+    <!-- Memuat Library Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Comic Sans MS', 'Bubblegum Sans', cursive, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #74b9ff 0%, #a29bfe 100%);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            border: 5px solid #ff7675;
+            position: relative;
+        }
+
+        h1 {
+            color: #d63031;
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            text-shadow: 2px 2px 0px #ffeaa7;
+        }
+
+        p.instruction {
+            color: #555;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* Overlay Tombol Play Awal */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #start-overlay h2 {
+            color: #d63031;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0px #ffeaa7;
+            padding: 0 15px;
+        }
+
+        #play-btn {
+            background-color: #00b894;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 15px rgba(0, 184, 148, 0.4);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        #play-btn:hover {
+            background-color: #00cec9;
+            transform: scale(1.05);
+        }
+
+        /* Status & Level Info */
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 10px;
+            padding: 0 5px;
+        }
+
+        /* Area Canvas Objek Kosong di Tengah */
+        .canvas-area {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background: #f1f2f6;
+            border: 3px dashed #b2bec3;
+            border-radius: 20px;
+            margin: 0 auto 15px auto;
+        }
+
+        /* Target Slot Kosong */
+        .drop-slot {
+            position: absolute;
+            border: 3px dashed #636e72;
+            background: rgba(223, 230, 233, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .drop-slot.filled {
+            border: 3px solid #00b894;
+            background: rgba(0, 184, 148, 0.15);
+        }
+
+        /* Pilihan Bentuk di Bawah */
+        .toolbox-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 8px;
+        }
+
+        .toolbox {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            min-height: 90px;
+            background: #dfe6e9;
+            padding: 12px;
+            border-radius: 15px;
+            align-items: center;
+        }
+
+        .shape-item {
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+            touch-action: none;
+        }
+
+        .shape-item:active {
+            cursor: grabbing;
+        }
+
+        #feedback-text {
+            font-size: 18px;
+            font-weight: bold;
+            height: 25px;
+            margin-bottom: 5px;
+        }
+
+        #next-btn {
+            background-color: #e17055;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(225, 112, 85, 0.4);
+            display: none;
+        }
+
+        #next-btn:hover {
+            background-color: #fab1a0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Musik Latar & Musik Tepuk Tangan -->
+    <audio id="bg-music" src="https://files.catbox.moe/a742my.mp3" preload="auto" loop></audio>
+    <audio id="win-music" src="https://files.catbox.moe/wsohm6.mp3" preload="auto"></audio>
+
+    <div class="game-container">
+        <!-- Overlay Tombol Play Awal -->
+        <div id="start-overlay">
+            <h2>🧩 Game Menyusun Bentuk (Tangram) 🧩</h2>
+            <button id="play-btn" onclick="startGame()">Mulai Main 🚀</button>
+        </div>
+
+        <h1>⭐ Susun Bentuk Jadi Objek ⭐</h1>
+        <p class="instruction">Seret dan letakkan bentuk ke tempat kosong yang pas di tengah!</p>
+
+        <div class="game-info">
+            <div>Objek ke: <span id="current-level">1</span> / 5</div>
+            <div>Skor: <span id="score">0</span></div>
+        </div>
+
+        <div id="feedback-text"></div>
+
+        <!-- Area Objek Kosong di Tengah -->
+        <div class="canvas-area" id="canvas-area">
+            <!-- Slot bayangan & bentuk masuk otomatis via JS -->
+        </div>
+
+        <div class="toolbox-title">Pilihan Bentuk:</div>
+        <!-- Kotak Pilihan Bentuk di Bawah -->
+        <div class="toolbox" id="toolbox">
+            <!-- Bentuk acak via JS -->
+        </div>
+
+        <button id="next-btn" onclick="nextLevel()">Objek Berikutnya ➡️</button>
+    </div>
+
+    <script>
+        // Data 5 Objek Diperbarui Sesuai Permintaan
+        const objectsList = [
+            {
+                name: "Rumah",
+                slots: [
+                    { id: 'roof', type: 'triangle', width: 140, height: 70, left: 180, top: 25 },
+                    { id: 'base', type: 'square', width: 120, height: 100, left: 190, top: 95 },
+                    { id: 'door', type: 'rectangle', width: 35, height: 55, left: 232, top: 140 }
+                ]
+            },
+            {
+                name: "Es Krim",
+                slots: [
+                    { id: 'scoop', type: 'half-circle', width: 100, height: 55, left: 200, top: 60 },
+                    { id: 'cone', type: 'cone-down', width: 70, height: 90, left: 215, top: 110 }
+                ]
+            },
+            {
+                name: "Pohon",
+                slots: [
+                    { id: 'leaves', type: 'triangle-up', width: 130, height: 110, left: 175, top: 20 },
+                    { id: 'trunk', type: 'rectangle', width: 35, height: 80, left: 222, top: 130 }
+                ]
+            },
+            {
+                name: "Orang-orangan",
+                slots: [
+                    { id: 'head', type: 'circle', width: 90, height: 90, left: 205, top: 35 },
+                    { id: 'eyeL', type: 'circle-small', width: 15, height: 15, left: 230, top: 60 },
+                    { id: 'eyeR', type: 'circle-small', width: 15, height: 15, left: 255, top: 60 },
+                    { id: 'smile', type: 'smile', width: 35, height: 18, left: 233, top: 80 }
+                ]
+            },
+            {
+                name: "Roket",
+                slots: [
+                    { id: 'body', type: 'triangle', width: 60, height: 80, left: 220, top: 20 },
+                    { id: 'finL', type: 'triangle', width: 30, height: 40, left: 190, top: 95 },
+                    { id: 'finR', type: 'triangle', width: 30, height: 40, left: 280, top: 95 },
+                    { id: 'window', type: 'circle-small', width: 30, height: 30, left: 235, top: 60 }
+                ]
+            }
+        ];
+
+        let shuffledObjects = [];
+        let currentLevelIndex = 0;
+        let score = 0;
+        let placedCount = 0;
+        let totalSlotsInLevel = 0;
+
+        const startOverlay = document.getElementById('start-overlay');
+        const canvasArea = document.getElementById('canvas-area');
+        const toolbox = document.getElementById('toolbox');
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('current-level');
+        const feedbackText = document.getElementById('feedback-text');
+        const nextBtn = document.getElementById('next-btn');
+        const bgMusic = document.getElementById('bg-music');
+        const winMusic = document.getElementById('win-music');
+
+        bgMusic.volume = 0.2;
+        winMusic.volume = 0.6;
+
+        function startGame() {
+            startOverlay.style.display = 'none';
+            bgMusic.currentTime = 0;
+            bgMusic.play().catch(() => {});
+            
+            shuffledObjects = [...objectsList].sort(() => Math.random() - 0.5);
+            currentLevelIndex = 0;
+            score = 0;
+            scoreDisplay.textContent = score;
+
+            loadLevel();
+        }
+
+        function loadLevel() {
+            canvasArea.innerHTML = '';
+            toolbox.innerHTML = '';
+            feedbackText.textContent = '';
+            nextBtn.style.display = 'none';
+            placedCount = 0;
+
+            levelDisplay.textContent = currentLevelIndex + 1;
+            const currentObj = shuffledObjects[currentLevelIndex];
+            totalSlotsInLevel = currentObj.slots.length;
+
+            // 1. Render Slot Kosong di Tengah
+            currentObj.slots.forEach(slot => {
+                const slotDiv = document.createElement('div');
+                slotDiv.classList.add('drop-slot');
+                slotDiv.dataset.id = slot.id;
+                slotDiv.style.width = slot.width + 'px';
+                slotDiv.style.height = slot.height + 'px';
+                slotDiv.style.left = slot.left + 'px';
+                slotDiv.style.top = slot.top + 'px';
+                
+                applyShapeStyle(slotDiv, slot.type);
+                canvasArea.appendChild(slotDiv);
+            });
+
+            // 2. Buat Pilihan Bentuk di Bawah
+            let shuffledSlots = [...currentObj.slots].sort(() => Math.random() - 0.5);
+
+            shuffledSlots.forEach(slot => {
+                const item = document.createElement('div');
+                item.classList.add('shape-item');
+                item.dataset.id = slot.id;
+                item.style.width = slot.width + 'px';
+                item.style.height = slot.height + 'px';
+                item.style.background = getRandomColor();
+                
+                applyShapeStyle(item, slot.type);
+                initDragAndDrop(item, slot.id);
+                toolbox.appendChild(item);
+            });
+        }
+
+        // Fungsi pembantu untuk mengatur bentuk CSS geometris secara akurat
+        function applyShapeStyle(element, type) {
+            if (type === 'triangle' || type === 'triangle-up') {
+                element.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+            } else if (type === 'cone-down') {
+                element.style.clipPath = 'polygon(50% 100%, 0% 0%, 100% 0%)';
+            } else if (type === 'half-circle') {
+                element.style.borderTopLeftRadius = '100px';
+                element.style.borderTopRightRadius = '100px';
+            } else if (type === 'circle' || type === 'circle-small') {
+                element.style.borderRadius = '50%';
+            } else if (type === 'smile') {
+                element.style.borderBottomLeftRadius = '50px';
+                element.style.borderBottomRightRadius = '50px';
+                element.style.borderBottom = '5px solid white';
+                element.style.background = 'transparent';
+            } else if (type === 'rectangle' || type === 'square') {
+                element.style.borderRadius = '8px';
+            }
+        }
+
+        function getRandomColor() {
+            const colors = ['#ff7675', '#0984e3', '#00b894', '#fdcb6e', '#e84393', '#6c5ce7', '#00cec9', '#e17055'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Interaksi Drag & Drop dengan Posisi Presisi & Magnet Luas
+        function initDragAndDrop(item, targetId) {
+            let isDragging = false;
+            let shiftX = 0, shiftY = 0;
+
+            function dragStart(e) {
+                if (item.classList.contains('placed')) return;
+                isDragging = true;
+
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const rect = item.getBoundingClientRect();
+                shiftX = clientX - rect.left;
+                shiftY = clientY - rect.top;
+
+                item.style.position = 'fixed';
+                item.style.left = (clientX - shiftX) + 'px';
+                item.style.top = (clientY - shiftY) + 'px';
+                item.style.zIndex = '1000';
+
+                if (e.type === 'touchstart') {
+                    document.addEventListener('touchmove', dragMove, { passive: false });
+                    document.addEventListener('touchend', dragEnd);
+                } else {
+                    document.addEventListener('mousemove', dragMove);
+                    document.addEventListener('mouseup', dragEnd);
+                }
+                if(e.cancelable) e.preventDefault();
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                item.style.left = (clientX - shiftX) + 'px';
+                item.style.top = (clientY - shiftY) + 'px';
+
+                if(e.cancelable) e.preventDefault();
+            }
+
+            function dragEnd(e) {
+                if (!isDragging) return;
+                isDragging = false;
+
+                if (e.type === 'touchend') {
+                    document.removeEventListener('touchmove', dragMove);
+                    document.removeEventListener('touchend', dragEnd);
+                } else {
+                    document.removeEventListener('mousemove', dragMove);
+                    document.removeEventListener('mouseup', dragEnd);
+                }
+
+                const targetSlot = document.querySelector(`.drop-slot[data-id="${targetId}"]`);
+                const slotRect = targetSlot.getBoundingClientRect();
+                const itemRect = item.getBoundingClientRect();
+
+                const itemCenterX = itemRect.left + itemRect.width / 2;
+                const itemCenterY = itemRect.top + itemRect.height / 2;
+
+                const tolerance = 50;
+                const isNearTarget = 
+                    itemCenterX >= slotRect.left - tolerance &&
+                    itemCenterX <= slotRect.right + tolerance &&
+                    itemCenterY >= slotRect.top - tolerance &&
+                    itemCenterY <= slotRect.bottom + tolerance;
+
+                if (isNearTarget) {
+                    item.style.position = 'absolute';
+                    item.style.left = targetSlot.offsetLeft + 'px';
+                    item.style.top = targetSlot.offsetTop + 'px';
+                    item.style.zIndex = '1';
+                    item.style.cursor = 'default';
+                    item.classList.add('placed');
+                    targetSlot.classList.add('filled');
+                    canvasArea.appendChild(item);
+
+                    item.onmousedown = null;
+                    item.ontouchstart = null;
+
+                    placedCount++;
+                    score += 15;
+                    scoreDisplay.textContent = score;
+
+                    checkLevelCompletion();
+                } else {
+                    item.style.position = 'static';
+                    item.style.zIndex = '1';
+                }
+            }
+
+            item.addEventListener('mousedown', dragStart);
+            item.addEventListener('touchstart', dragStart, { passive: false });
+        }
+
+        function checkLevelCompletion() {
+            if (placedCount === totalSlotsInLevel) {
+                feedbackText.textContent = '🎉 Hebat! Objek Berhasil Disusun!';
+                feedbackText.style.color = '#00b894';
+
+                winMusic.currentTime = 0;
+                winMusic.play().catch(() => {});
+
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+
+                if (currentLevelIndex < shuffledObjects.length - 1) {
+                    nextBtn.textContent = 'Objek Berikutnya ➡️';
+                    nextBtn.style.display = 'inline-block';
+                } else {
+                    feedbackText.textContent = '🌟 Luar Biasa! Semua Objek Selesai Disusun! 🌟';
+                    nextBtn.textContent = 'Main Lagi 🔄';
+                    nextBtn.onclick = startGame;
+                    nextBtn.style.display = 'inline-block';
+                }
+            }
+        }
+
+        function nextLevel() {
+            currentLevelIndex++;
+            nextBtn.onclick = nextLevel;
+            loadLevel();
+        }
+    </script>
+</body>
+</html>
